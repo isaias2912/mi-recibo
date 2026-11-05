@@ -51,7 +51,7 @@ img{max-width:100%}
   --ok:#6FD3A6; --ok-bg:#12382B; --bad:#FF9A8F; --bad-bg:#43201C; --warn-bg:#3A2F12; --warn:#F2CE7A;
   --rem:#4FAFC4; --nr:#EDB64B; color-scheme:dark;
 }
-*{box-sizing:border-box}
+*{box-sizing:border-box;touch-action:manipulation}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
 button,select,input{font:inherit;color:inherit}
@@ -187,6 +187,11 @@ input.dato::placeholder{color:var(--muted);opacity:.85}
 .txtlargo p{margin:0 0 8px;font-size:.93rem;max-width:65ch}
 .txtlargo h3{font-size:1.05rem;margin:12px 0 4px}
 
+.paso button{user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+@media (pointer:coarse){
+  input.dato,select.dato,.grilla input,.tabla input.dato,.tabla select.dato{font-size:16px}
+  .tabla input.dato{min-width:132px}.tabla select.dato{min-width:118px}
+}
 #tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
 #tabs .inner{display:grid;grid-template-columns:repeat(4,1fr);max-width:640px;margin-inline:auto}
 #tabs button{border:0;background:transparent;min-height:56px;font-family:var(--display);font-weight:600;font-size:1rem;letter-spacing:.06em;color:var(--muted);border-top:3px solid transparent}
