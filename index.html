@@ -63,6 +63,8 @@ h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;text-wrap:balance}
 #top .inner{max-width:1120px;margin-inline:auto;padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px}
 .marca{display:flex;align-items:baseline;gap:10px;min-width:0;flex:1 1 180px}
 .marca h1{font-size:1.3rem;letter-spacing:.01em;white-space:nowrap}
+.firma{font-family:var(--display);font-weight:600;font-size:.85rem;letter-spacing:.03em;color:var(--accent);white-space:nowrap;margin-left:-4px}
+@media (max-width:429px){.cct{display:none}}
 .ficha{font-family:var(--data);font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .guardado{font-size:.75rem;color:var(--muted);margin-left:auto;white-space:nowrap}
 .guardado.error{color:var(--bad);font-weight:600}
@@ -182,7 +184,9 @@ input.dato::placeholder{color:var(--muted);opacity:.85}
 .tabla select.dato{min-width:104px}
 .tabla tr.sel td{background:var(--ok-bg)}
 .form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;margin-top:6px}
-.form label{font-size:.84rem;color:var(--muted);display:grid;gap:3px;min-width:0}
+.form label{font-size:.84rem;color:var(--muted);display:grid;grid-template-columns:minmax(0,1fr);gap:3px;min-width:0}
+input[type="date"].dato{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;text-align:left}
+input[type="date"].dato::-webkit-date-and-time-value{text-align:left}
 .form .ancho{grid-column:1/-1}
 .txtlargo p{margin:0 0 8px;font-size:.93rem;max-width:65ch}
 .txtlargo h3{font-size:1.05rem;margin:12px 0 4px}
@@ -205,7 +209,7 @@ input.dato::placeholder{color:var(--muted);opacity:.85}
 </head>
 <body>
 <header id="top"><div class="inner">
-  <div class="marca"><h1>Mi Recibo</h1><span class="ficha" id="ficha">CCT 784/21</span><span class="guardado" id="guardado"></span></div>
+  <div class="marca"><h1>Mi Recibo</h1><span class="firma">by M.R</span><span class="ficha" id="ficha">CCT 784/21</span><span class="guardado" id="guardado"></span></div>
   <div class="selector">
     <button id="prev" type="button" aria-label="Mes anterior">‹</button>
     <select id="mes" aria-label="Mes de liquidación"></select>
@@ -475,7 +479,7 @@ function dibujarSelector(){
 }
 function dibujarCabecera(){
   const r=resActual();if(!r)return;
-  $("#ficha").textContent=`${r.cat} · ${ZONAS[S.perfil.zonaId==="ZA"?"ZA":"Z1"].n} · CCT 784/21`;
+  $("#ficha").innerHTML=`${esc(r.cat)} · ${ZONAS[S.perfil.zonaId==="ZA"?"ZA":"Z1"].n}<span class="cct"> · CCT 784/21</span>`;
   $("#mini").innerHTML=S.cargado?`<small>Neto ${esc(r.id)}</small>${$2(r.NETO)}`:"";
 }
 function lineaHTML(l){
@@ -685,6 +689,7 @@ function dibujarAumentos(){
     <p>AVC y Asignación cuenca suben con la pauta. Horas 50% PT suma a Ha 2550. Viaje y Viaje PT se pagan a valor art. 59 con presentismo. Vianda comedor y extra van a Ha 5010. El tope de obra social se aplica sobre remunerativo + Asignación cuenca. El plus vacacional sin valor cargado se estima con el promedio remunerativo de hasta 6 meses.</p>
     <p>Si tu recibo trae otros conceptos, como Disponibilidad, Torre o Choferes, cargalos en Otro remunerativo. Pueden cambiar el valor hora, así que el resultado es menos exacto.</p>
     <h3>No incluye</h3><p>Ganancias y aguinaldo. Si te retienen Ganancias, cargala a mano. Compará siempre con tu recibo real cargando el neto en Cargar.</p>
+    <h3>Creador</h3><p>App creada por M.R.</p>
   </div>`;
 }
 function dibujarTodo(){
