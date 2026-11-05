@@ -1,6 +1,6 @@
 // Guarda la app en el teléfono para que abra sin señal.
 // Si cambiás fuentes o íconos, subí el número de VERSION. Para tablas nuevas alcanza con reemplazar index.html.
-const VERSION = "1";
+const VERSION = "2";
 const CACHE = "mi-recibo-" + VERSION;
 const ARCHIVOS = [
  "./",
@@ -19,7 +19,7 @@ const ARCHIVOS = [
  "ibm-plex-mono-500.woff2"
 ];
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARCHIVOS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARCHIVOS.map(u => new Request(u, {cache: "reload"})))).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -29,7 +29,7 @@ self.addEventListener("fetch", e => {
   if (r.method !== "GET" || new URL(r.url).origin !== location.origin) return;
   if (r.mode === "navigate") {
     // Busca la versión nueva, pero con poca señal abre la guardada a los 2,5 segundos.
-    const red = fetch(r).then(res => {
+    const red = fetch(r.url, {cache: "no-cache"}).then(res => {
       if (res.ok) { const copia = res.clone(); caches.open(CACHE).then(c => c.put("./", copia)); }
       return res;
     });
