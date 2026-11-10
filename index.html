@@ -14,6 +14,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script>try{var t=localStorage.getItem("mi-recibo-tema");if(t==="claro")t="gris";if(t==="oscuro")t="negro";if(t==="gris"||t==="negro")document.documentElement.setAttribute("data-paleta",t)}catch(e){}</script>
 <style>
 @font-face{font-family:"Barlow Condensed";font-style:normal;font-weight:600;font-display:swap;src:url(barlow-condensed-600.woff2) format("woff2")}
 @font-face{font-family:"Barlow Condensed";font-style:normal;font-weight:700;font-display:swap;src:url(barlow-condensed-700.woff2) format("woff2")}
@@ -26,7 +27,7 @@
 body{margin:0}
 img{max-width:100%}
 [hidden]{display:none!important}
-/* Concepto: indicador de campo. Una columna en el celular, lectura grande arriba, teclas abajo. Lo único fuerte es el display del neto. */
+/* Concepto: indicador de campo. Temas: original (sigue al teléfono), gris claro y negro. Una columna en el celular, lectura grande arriba, teclas abajo. Lo único fuerte es el display del neto. */
 :root{
   --bg:#E8EDEF; --surface:#F8FAFB; --ink:#0F252D; --muted:#51666E; --line:#CBD6DA;
   --panel:#0C3540; --panel-ink:#E8F4F2; --panel-muted:#A5C4C6; --signal:#FFB83D;
@@ -51,6 +52,22 @@ img{max-width:100%}
   --ok:#6FD3A6; --ok-bg:#12382B; --bad:#FF9A8F; --bad-bg:#43201C; --warn-bg:#3A2F12; --warn:#F2CE7A;
   --rem:#4FAFC4; --nr:#EDB64B; color-scheme:dark;
 }
+/* Temas elegidos en la app: van después para ganarle al modo del teléfono */
+:root[data-paleta="gris"]{
+  --bg:#E7E7E7; --surface:#F6F6F6; --ink:#1A1A1A; --muted:#5C5C5C; --line:#D0D0D0;
+  --panel:#2B2B2B; --panel-ink:#F4F4F4; --panel-muted:#B8B8B8; --signal:#FFB83D;
+  --accent:#9C4500; --input:#FFFFFF; --input-line:#A9A9A9;
+  --ok:#14684A; --ok-bg:#DDEEE5; --bad:#AE2318; --bad-bg:#F6E0DD; --warn-bg:#F3EAD3; --warn:#6E4A00;
+  --rem:#2A8094; --nr:#E3A32B;
+  color-scheme:light;
+}
+:root[data-paleta="negro"]{
+  --bg:#000000; --surface:#0D0D0D; --ink:#ECECEC; --muted:#999999; --line:#262626;
+  --panel:#161616; --panel-ink:#F2F2F2; --panel-muted:#A6A6A6; --signal:#FFC257;
+  --accent:#FFAD5C; --input:#141414; --input-line:#3D3D3D;
+  --ok:#6FD3A6; --ok-bg:#0F2A1F; --bad:#FF9A8F; --bad-bg:#3A1714; --warn-bg:#2B230F; --warn:#F2CE7A;
+  --rem:#4FAFC4; --nr:#EDB64B; color-scheme:dark;
+}
 *{box-sizing:border-box;touch-action:manipulation}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
@@ -67,6 +84,8 @@ h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;text-wrap:balance}
 @media (max-width:429px){.cct{display:none}}
 .ficha{font-family:var(--data);font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .guardado{font-size:.75rem;color:var(--muted);margin-left:auto;white-space:nowrap}
+.tema{align-self:center;flex:none;width:38px;height:38px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;display:grid;place-items:center;padding:0}
+.tema svg{width:19px;height:19px;display:block}
 .guardado.error{color:var(--bad);font-weight:600}
 .selector{display:flex;align-items:center;gap:6px;flex:1 1 300px;min-width:0}
 body[data-tab="meses"] .selector,body[data-tab="aumentos"] .selector{display:none}
@@ -209,7 +228,7 @@ input[type="date"].dato::-webkit-date-and-time-value{text-align:left}
 </head>
 <body>
 <header id="top"><div class="inner">
-  <div class="marca"><h1>Mi Recibo</h1><span class="firma">by M.R</span><span class="ficha" id="ficha">CCT 784/21</span><span class="guardado" id="guardado"></span></div>
+  <div class="marca"><h1>Mi Recibo</h1><span class="firma">by M.R</span><span class="ficha" id="ficha">CCT 784/21</span><span class="guardado" id="guardado"></span><button class="tema" id="tema" type="button" aria-label="Cambiar tema"></button></div>
   <div class="selector">
     <button id="prev" type="button" aria-label="Mes anterior">‹</button>
     <select id="mes" aria-label="Mes de liquidación"></select>
@@ -378,6 +397,22 @@ function calcularTodo(ctx){
 }
 /*ENGINE-END*/
 
+const CLAVE_TEMA="mi-recibo-tema",TEMAS=["original","gris","negro"];
+const ICONO_TEMA={
+  original:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg>',
+  gris:'<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>',
+  negro:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.6A8.5 8.5 0 0 1 9.4 4a8.5 8.5 0 1 0 10.6 10.6z" fill="currentColor"/></svg>'};
+const NOMBRE_TEMA={original:"original, sigue el modo del teléfono",gris:"gris claro",negro:"negro"};
+const COLOR_BARRA={gris:"#F6F6F6",negro:"#0D0D0D"};
+function leerTema(){let t=null;try{t=localStorage.getItem(CLAVE_TEMA)}catch(e){}return t==="claro"?"gris":t==="oscuro"?"negro":TEMAS.includes(t)?t:"original"}
+function aplicarTema(t){
+  const raiz=document.documentElement;
+  if(t==="original")raiz.removeAttribute("data-paleta");else raiz.setAttribute("data-paleta",t);
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>{if(m.dataset.orig===undefined)m.dataset.orig=m.content;m.content=COLOR_BARRA[t]||m.dataset.orig});
+  const b=document.getElementById("tema");if(b){b.innerHTML=ICONO_TEMA[t];b.setAttribute("aria-label",`Tema ${NOMBRE_TEMA[t]}. Tocá para cambiarlo`);b.title=`Tema ${NOMBRE_TEMA[t]}`}
+}
+function siguienteTema(){const t=TEMAS[(TEMAS.indexOf(leerTema())+1)%TEMAS.length];try{localStorage.setItem(CLAVE_TEMA,t)}catch(e){}aplicarTema(t);return t}
+aplicarTema(leerTema());
 const $=(s,r=document)=>r.querySelector(s);
 const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -672,7 +707,7 @@ function dibujarAumentos(){
     <div class="tabla"><table><thead><tr><th>Mes</th><th>Tabla</th><th>Suma NR</th><th>Tope</th><th>Feriados</th><th style="text-align:left">Qué se paga</th></tr></thead><tbody>${filasPauta}</tbody></table></div>
   </div>
   <div class="bloque"><h2>Valores por tabla</h2>
-    <p class="ayuda">En amarillo lo que podés corregir. AVC y Asignación cuenca no figuran en la tabla oficial: octubre sale del recibo real y desde enero suben con la pauta, como supuesto.</p>
+    <p class="ayuda">Lo que está en un recuadro se puede corregir. AVC y Asignación cuenca no figuran en la tabla oficial: octubre sale del recibo real y desde enero suben con la pauta, como supuesto.</p>
     <div class="tabla"><table><thead><tr><th>Concepto</th>${ts.map(t=>`<th>${esc(t)}</th>`).join("")}</tr></thead><tbody>${filasVal}</tbody></table></div>
     <details class="plegable"><summary>Tabla completa de básicos, ${zn}</summary>
       <div class="tabla"><table><thead><tr><th>Cat.</th>${DATOS.tablas.map(t=>`<th>${t}</th>`).join("")}</tr></thead><tbody>${DATOS.cats.map(c=>`<tr class="${c===r.cat?"sel":""}"><td class="txt">${c}</td>${DATOS.val[pre+c].map(v=>`<td>${$0(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
@@ -765,6 +800,7 @@ document.addEventListener("change",e=>{
 });
 document.addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
+  if(b.id==="tema"){const t=siguienteTema();avisar(`Tema ${NOMBRE_TEMA[t]}.`);return}
   if(b.dataset.tab){irTab(b.dataset.tab);return}
   if(b.id==="prev"||b.id==="next"){
     const i=S.lista.findIndex(x=>x.id===S.mes)+(b.id==="prev"?-1:1);
