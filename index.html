@@ -186,6 +186,7 @@ input.dato::placeholder{color:var(--muted);opacity:.85}
 .fila .pista i{display:block;height:100%;background:var(--rem)}
 .fila .pista i.est{background:var(--nr)}
 .fila .pista i.fijo{background:var(--line)}
+.fila .pista i.sac{background:var(--accent)}
 .fila .v{font-family:var(--data);font-size:.82rem;text-align:right;font-variant-numeric:tabular-nums}
 .fila.activa .m{color:var(--accent)}
 .leyenda{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.8rem;color:var(--muted);margin-top:6px}
@@ -393,6 +394,29 @@ function calcularTodo(ctx){
     out[mi.id]={id:mi.id,y:mi.y,m:mi.m,cat,catmf,caso,disp,comp,compnr,tabla,coef,tope,fer,qv8,vvacEst:est,REM,NR,DES,NETO,lineas,hay,real:num(d.real),S,h50,h100,nota:de.nota||""};
     rems.push(REM);
   }
+  // Aguinaldo: 50% del mejor remunerativo del semestre, proporcional a los días trabajados
+  for(const mi of ctx.lista){
+    if(mi.m!==6&&mi.m!==12)continue;
+    const ini=mi.m===6?1:7,ids=[];for(let m=ini;m<=mi.m;m++)ids.push(idMes(mi.y,m));
+    if(!ids.every(id=>out[id]))continue;
+    let mejor=ids[0];for(const id of ids)if(out[id].REM>out[mejor].REM)mejor=id;
+    const t0=Date.UTC(mi.y,ini-1,1),t1=Date.UTC(mi.y,mi.m,0),tot=Math.round((t1-t0)/864e5)+1;
+    let dias=tot;
+    if(pf.ingreso){const [iy,im,id]=pf.ingreso.split("-").map(Number),ti=Date.UTC(iy,im-1,id);if(ti>t1)dias=0;else if(ti>t0)dias=Math.round((t1-ti)/864e5)+1}
+    const o=out[mi.id],d=(ctx.meses||{})[mi.id]||{},bruto=r2(out[mejor].REM/2*dias/tot);
+    const tope=o.tope?o.tope/2:bruto,b=Math.min(bruto,tope);
+    const sj=r2(P.jub*b),sl=r2(P.ley*b),so=r2(P.os*b),ss=r2(P.sin*bruto),sm=r2(P.mut*bruto),sg=num(d.sacgan);
+    const DES=r2(sj+sl+so+ss+sm+sg);
+    o.sac={sem:mi.m===6?"1.º":"2.º",desde:ids[0],mejor,remMejor:out[mejor].REM,dias,tot,bruto,DES,NETO:r2(bruto-DES),real:num(d.sacreal),pago:mi.m===6?"30/06":"18/12",
+      lineas:[
+        {g:"sac",cod:"",con:"Aguinaldo (SAC)",mon:bruto},
+        {g:"des",cod:"",con:"Jubilación",mon:sj,cant:P.jub*100,uni:"%",val:b},
+        {g:"des",cod:"",con:"Ley 19032",mon:sl,cant:P.ley*100,uni:"%",val:b},
+        {g:"des",cod:"",con:"Obra Social OSPe",mon:so,cant:P.os*100,uni:"%",val:b},
+        {g:"des",cod:"",con:"Cuota sindical",mon:ss,cant:P.sin*100,uni:"%",val:bruto},
+        {g:"des",cod:"",con:"Mutual 12 de Septiembre",mon:sm,cant:P.mut*100,uni:"%",val:bruto},
+        {g:"des",cod:"",con:"Ganancias u otro descuento",mon:sg}]};
+  }
   return out;
 }
 /*ENGINE-END*/
@@ -532,6 +556,19 @@ function grupoHTML(tit,g,tot,r){
   const ls=r.lineas.filter(l=>l.g===g&&Math.abs(l.mon)>=.005);
   return `<section class="grupo"><h2>${tit}<span>${$2(tot)}</span></h2><ul class="lineas">${ls.map(lineaHTML).join("")}</ul></section>`;
 }
+function sacHTML(r){
+  const a=r.sac;if(!a)return "";
+  const ls=a.lineas.filter(l=>Math.abs(l.mon)>=.005);
+  let nota="";
+  if(a.real>0){const d=a.NETO-a.real;nota=Math.abs(d)<1?`<p class="nota ok">Coincide con tu aguinaldo real de ${$2(a.real)}.</p>`:`<p class="nota mal">Tu aguinaldo real dice ${$2(a.real)}. Diferencia: ${$2(d)}.</p>`}
+  const prop=a.dias<a.tot?` Proporcional: ${a.dias} de ${a.tot} días.`:"";
+  return `<section class="grupo sac"><h2>Aguinaldo ${a.sem} semestre<span>${$2(a.NETO)}</span></h2>
+    <p class="ayuda" style="margin-top:6px">50% del mejor remunerativo de ${esc(a.desde)} a ${esc(r.id)}: ${esc(a.mejor)}, ${$2(a.remMejor)}.${prop} Se paga hasta el ${a.pago}. Es una estimación: todavía no se comparó con un recibo de aguinaldo.</p>
+    <ul class="lineas">${ls.map(l=>lineaHTML(l.g==="des"?Object.assign({},l,{mon:-l.mon}):l)).join("")}</ul>
+    ${nota}
+    <p class="nota"><span>Sueldo + aguinaldo de ${esc(r.id)}</span><b>${$2(r.NETO+a.NETO)}</b></p>
+  </section>`;
+}
 function dibujarRecibo(){
   const p=$("#p-recibo"),r=resActual();
   if(!S.cargado)return;
@@ -554,7 +591,7 @@ function dibujarRecibo(){
   p.innerHTML=`<div class="lectura">
     <div class="lect-top"><span class="tag">SUELDO NETO · ${esc(r.id)}</span><span class="pill ${cl}">${tx}</span></div>
     <div class="monto"><span class="sig">$</span>${ent}<span class="dec">,${dec}</span></div>
-    <div class="sub">${dif!==null?`<span><b>${dif>=0?"+":"−"}${$0(Math.abs(dif))}</b> contra ${esc(prev)}</span>`:""}<span>Cobro: 4.º día hábil de ${mesCobro}</span><span>Planilla 21/${dd(pe.desde.m)} al 20/${dd(pe.hasta.m)}</span></div>
+    <div class="sub">${dif!==null?`<span><b>${dif>=0?"+":"−"}${$0(Math.abs(dif))}</b> contra ${esc(prev)}</span>`:""}<span>Cobro: 4.º día hábil de ${mesCobro}</span><span>Planilla 21/${dd(pe.desde.m)} al 20/${dd(pe.hasta.m)}</span>${r.sac?`<span>Aguinaldo aparte: <b>${$0(r.sac.NETO)}</b></span>`:""}</div>
     <div class="barra" role="img" aria-label="Remunerativo y no remunerativo sobre el bruto"><i class="r" style="width:${(r.REM/br*100).toFixed(1)}%"></i><i class="n" style="width:${(r.NR/br*100).toFixed(1)}%"></i></div>
     <dl class="tres">
       <div><dt><i style="background:var(--rem)"></i>Remunerativo</dt><dd>${$0(r.REM)}</dd></div>
@@ -566,6 +603,7 @@ function dibujarRecibo(){
   ${grupoHTML("Remunerativo","rem",r.REM,r)}
   ${grupoHTML("No remunerativo","nr",r.NR,r)}
   ${grupoHTML("Descuentos","des",r.DES,r)}
+  ${sacHTML(r)}
   <details class="plegable"><summary>Líneas informativas del recibo (netean a cero)</summary>
     <ul class="lineas">${r.lineas.filter(l=>l.g==="info"&&Math.abs(l.mon)>=.005).map(lineaHTML).join("")}</ul>
   </details>
@@ -645,7 +683,12 @@ function dibujarCargar(){
   <div class="bloque"><h2>Tu recibo real</h2>
     <p class="ayuda">Cuando llegue, cargá el neto y lo comparo con el cálculo.</p>
     <div class="campo"><label for="f-real">Neto del recibo</label><input class="dato" id="f-real" data-f="real" inputmode="decimal" autocomplete="off" value="${esc(vTxt(d.real))}" placeholder="0"></div>
-  </div>`;
+  </div>
+  ${r.sac?`<div class="bloque"><h2>Aguinaldo ${r.sac.sem} semestre</h2>
+    <p class="ayuda">Se calcula solo con los meses del semestre. Acá cargás lo que no sale del cálculo.</p>
+    <div class="campo"><label for="f-sacgan">Ganancias sobre el aguinaldo<small>se resta del aguinaldo</small></label><input class="dato" id="f-sacgan" data-f="sacgan" inputmode="decimal" autocomplete="off" value="${esc(vTxt(d.sacgan))}" placeholder="0"></div>
+    <div class="campo"><label for="f-sacreal">Neto real del aguinaldo<small>para comparar</small></label><input class="dato" id="f-sacreal" data-f="sacreal" inputmode="decimal" autocomplete="off" value="${esc(vTxt(d.sacreal))}" placeholder="0"></div>
+  </div>`:""}`;
   refrescarCargar();
 }
 function refrescarCargar(){
@@ -654,12 +697,12 @@ function refrescarCargar(){
 }
 function dibujarMeses(){
   const p=$("#p-meses");if(!S.cargado)return;
-  const rs=S.lista.map(m=>S.res[m.id]),max=Math.max(...rs.map(r=>r.NETO),1);
+  const rs=S.lista.map(m=>S.res[m.id]),max=Math.max(...rs.map(r=>r.NETO),...rs.map(r=>r.sac?r.sac.NETO:0),1);
   p.innerHTML=`<div class="bloque"><h2>Neto por mes</h2>
-    <div class="leyenda"><span><i style="background:var(--rem)"></i>Con recibo real</span><span><i style="background:var(--nr)"></i>Estimado</span><span><i style="background:var(--line)"></i>Solo parte fija</span></div>
+    <div class="leyenda"><span><i style="background:var(--rem)"></i>Con recibo real</span><span><i style="background:var(--nr)"></i>Estimado</span><span><i style="background:var(--line)"></i>Solo parte fija</span><span><i style="background:var(--accent)"></i>Aguinaldo</span></div>
     <div class="filas">${rs.map(r=>{
       const c=r.real>0?"":r.hay?"est":"fijo";
-      return `<button class="fila${r.id===S.mes?" activa":""}" type="button" data-ir-mes="${r.id}" aria-label="${r.id}: ${$2(r.NETO)}"><span class="m">${r.id}</span><span class="pista"><i class="${c}" style="width:${(r.NETO/max*100).toFixed(1)}%"></i></span><span class="v">${$0(r.NETO)}</span></button>`;
+      return `<button class="fila${r.id===S.mes?" activa":""}" type="button" data-ir-mes="${r.id}" aria-label="${r.id}: ${$2(r.NETO)}"><span class="m">${r.id}</span><span class="pista"><i class="${c}" style="width:${(r.NETO/max*100).toFixed(1)}%"></i></span><span class="v">${$0(r.NETO)}</span></button>${r.sac?`<button class="fila" type="button" data-ir-mes="${r.id}" aria-label="Aguinaldo ${r.sac.sem} semestre: ${$2(r.sac.NETO)}"><span class="m">SAC</span><span class="pista"><i class="sac" style="width:${(r.sac.NETO/max*100).toFixed(1)}%"></i></span><span class="v">${$0(r.sac.NETO)}</span></button>`:""}`;
     }).join("")}</div>
   </div>
   <div class="bloque"><h2>Copia de tus datos</h2>
@@ -731,7 +774,8 @@ function dibujarAumentos(){
     <h3>Sin probar</h3>
     <p>AVC y Asignación cuenca desde enero suben con la pauta. La suma NR de enero a marzo se toma como 2,65%. Horas 50% PT suma a Ha 2550. Viaje y Viaje PT se pagan a valor art. 59 con presentismo. Vianda comedor y extra van a Ha 5010. El plus vacacional sin valor cargado se estima con el promedio remunerativo de hasta 6 meses.</p>
     <p>Si tu recibo trae otros conceptos, como Torre, Altura o Choferes, cargalos en Otro remunerativo. Pueden cambiar el valor hora, así que el resultado es menos exacto.</p>
-    <h3>No incluye</h3><p>Ganancias y aguinaldo. Si te retienen Ganancias, cargala a mano. Compará siempre con tu recibo real cargando el neto en Cargar.</p>
+    <h3>Aguinaldo</h3><p>En junio y diciembre se calcula aparte: 50% del mejor mes remunerativo del semestre, proporcional si entraste en el medio. Descuenta jubilación, Ley 19032 y obra social con la mitad del tope de ANSES, más sindical y mutual. Todavía no se comparó con un recibo de aguinaldo, y las sumas no remunerativas no entran.</p>
+    <h3>No incluye</h3><p>Ganancias. Si te la retienen, cargala a mano en el sueldo y en el aguinaldo. Compará siempre con tu recibo real cargando el neto en Cargar.</p>
     <h3>Creador</h3><p>App creada por Mauco Reyes.</p>
   </div>`;
 }
