@@ -225,11 +225,49 @@ input[type="date"].dato::-webkit-date-and-time-value{text-align:left}
 #toast button{border:0;background:transparent;color:inherit;text-decoration:underline;font-weight:600}
 @media (prefers-reduced-motion:no-preference){.barra i,.fila .pista i{transition:width .25s ease}}
 .acciones{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+body.bloqueado>:not(#candado){visibility:hidden}
+#candado{position:fixed;inset:0;z-index:50;background:var(--bg);display:grid;place-items:center;overflow:auto;padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.candado-caja{width:min(360px,100%);display:grid;gap:12px;justify-items:center;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px 18px}
+.candado-caja img{border-radius:17px}
+.candado-caja h1{font-size:1.6rem;display:flex;align-items:baseline;gap:8px}
+.candado-caja p{margin:0;color:var(--muted);font-size:.95rem}
+.candado-caja p.autor{color:var(--ink);font-weight:600}
+.candado-caja input.dato{text-align:center;font-size:16px;letter-spacing:.08em;font-family:var(--data)}
+.candado-caja .btn{width:100%}
+.candado-error{color:var(--bad)!important;min-height:1.3em}
 </style>
 </head>
 <body>
+<div id="candado" hidden>
+<form id="candado-form" class="candado-caja" autocomplete="off">
+<img src="icon-192.png" alt="" width="76" height="76">
+<h1>Mi Recibo <span class="firma">MR</span></h1>
+<p class="autor">App creada por Mauco Reyes.</p>
+<p>Ingresá el código de acceso que te pasaron junto con la app.</p>
+<input id="candado-codigo" class="dato" type="text" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" aria-label="Código de acceso" placeholder="Código">
+<button class="btn lleno" type="submit">Entrar</button>
+<p id="candado-error" class="candado-error" role="alert"></p>
+</form>
+</div>
+<script>
+(function(){
+  var H="db3564c0effca4ce7dd94b410f868e35c6e73901faebcfdcee511667aac5b065",K="mi-recibo-acceso",ok=false;
+  try{ok=localStorage.getItem(K)===H}catch(e){}
+  if(ok)return;
+  var c=document.getElementById("candado"),f=document.getElementById("candado-form"),i=document.getElementById("candado-codigo"),er=document.getElementById("candado-error");
+  document.body.classList.add("bloqueado");c.hidden=false;
+  f.addEventListener("submit",async function(ev){
+    ev.preventDefault();er.textContent="";
+    var h="";
+    try{var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("mi-recibo:"+i.value.trim().toUpperCase()));h=Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
+    catch(e){er.textContent="Este navegador no puede validar el código. Probá con Safari o Chrome actualizados.";return}
+    if(h===H){try{localStorage.setItem(K,H)}catch(e){}document.body.classList.remove("bloqueado");c.hidden=true;window.scrollTo(0,0)}
+    else{er.textContent="Código incorrecto. Pedíselo a quien te pasó la app.";i.select()}
+  });
+})();
+</script>
 <header id="top"><div class="inner">
-  <div class="marca"><h1>Mi Recibo</h1><span class="firma">by M.R</span><span class="ficha" id="ficha">CCT 784/21</span><span class="guardado" id="guardado"></span><button class="tema" id="tema" type="button" aria-label="Cambiar tema"></button></div>
+  <div class="marca"><h1>Mi Recibo</h1><span class="firma">MR</span><span class="ficha" id="ficha">CCT 784/21</span><span class="guardado" id="guardado"></span><button class="tema" id="tema" type="button" aria-label="Cambiar tema"></button></div>
   <div class="selector">
     <button id="prev" type="button" aria-label="Mes anterior">‹</button>
     <select id="mes" aria-label="Mes de liquidación"></select>
