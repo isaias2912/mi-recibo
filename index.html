@@ -251,17 +251,17 @@ body.bloqueado>:not(#candado){visibility:hidden}
 </div>
 <script>
 (function(){
-  var H="db3564c0effca4ce7dd94b410f868e35c6e73901faebcfdcee511667aac5b065",K="mi-recibo-acceso",ok=false;
-  try{ok=localStorage.getItem(K)===H}catch(e){}
+  var H=["309244cde59cdad9335f1c4dc5987c6b9035bd5c20fb7c0c8793a4c190342df9", "44287593bac3fa74cf46b6d7231c966760863cb4814868baf6b9aac8e965b0cd", "540ae51654500289021b1352c52a65981d6522b124c620d569f5902793092dc9", "6c84c325f5244bc33877350ebdc4775f8ad960a922ad6692ee0f6fe807759856", "7a3d48f1c5f6306c6ead546ad804c537cb93ddd78c658dcb4d1691929df7c206", "8764c1d73bc0492aaa5904c3394dded3b2b77554a4320c8e6f2f3480d3b6bf86", "8e1fd1fa0bc0c3d7e2443a2b50d7d45d1c6c2ed18002260ce26217cf3fe531bd", "aeb4d990fca6dead1d99259d1b45630681b52c5f68ef4673617251333ce8cde2", "b3e639efce27577b9f4e04d2c758d013fee1297ddd0e72e1a82781f2c87be5a8", "c2e685692096b3df8c9f3cf08e1689227808ca505e0f03939fbf8a9f602847fc", "cc0acd0b5f7b9787e8c6ae570b57cfec5cc3093f6a721244d182ca48cd0e8d31", "db3564c0effca4ce7dd94b410f868e35c6e73901faebcfdcee511667aac5b065", "df25b037f8c7e3becb6e7a284b1b4ec31eb9f9b35e94e985e950f2075f91696a", "f679ec760b6d4cf35f867ef97ce5d57d614dbe5de2daf9e45fd6e898035c9bed", "f91ca145371edb33ca66337ccf7193d2f0c56e468eda31bbdb15f2f993a1bab8", "fc7e17c1f71273b732578ca5cce1c65c97f8b8ed5974a09f20e6fcd80cf8e261"],K="mi-recibo-acceso",ok=false;
+  try{ok=H.indexOf(localStorage.getItem(K))>=0}catch(e){}
   if(ok)return;
   var c=document.getElementById("candado"),f=document.getElementById("candado-form"),i=document.getElementById("candado-codigo"),er=document.getElementById("candado-error");
   document.body.classList.add("bloqueado");c.hidden=false;
   f.addEventListener("submit",async function(ev){
     ev.preventDefault();er.textContent="";
     var h="";
-    try{var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("mi-recibo:"+i.value.trim().toUpperCase()));h=Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
+    try{var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("mi-recibo:"+i.value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]/g,"")));h=Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
     catch(e){er.textContent="Este navegador no puede validar el código. Probá con Safari o Chrome actualizados.";return}
-    if(h===H){try{localStorage.setItem(K,H)}catch(e){}document.body.classList.remove("bloqueado");c.hidden=true;window.scrollTo(0,0)}
+    if(H.indexOf(h)>=0){try{localStorage.setItem(K,h)}catch(e){}document.body.classList.remove("bloqueado");c.hidden=true;window.scrollTo(0,0)}
     else{er.textContent="Código incorrecto. Pedíselo a quien te pasó la app.";i.select()}
   });
 })();
