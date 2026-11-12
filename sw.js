@@ -1,6 +1,6 @@
 // Guarda la app en el teléfono para que abra sin señal.
 // Si cambiás fuentes o íconos, subí el número de VERSION. Para tablas nuevas alcanza con reemplazar index.html.
-const VERSION = "2";
+const VERSION = "4";
 const CACHE = "mi-recibo-" + VERSION;
 const ARCHIVOS = [
  "./",
