@@ -166,6 +166,10 @@ input.dato::placeholder{color:var(--muted);opacity:.85}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--bg);padding:3px;border-radius:9px;margin:8px 0}
 .seg button{border:0;background:transparent;border-radius:7px;min-height:38px;font-weight:600;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.planilla-wsp{margin-top:10px}
+.planilla-wsp input.dato{text-align:left;font-family:var(--body)}
+.planilla-wsp .btn{width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;font-size:1rem}
+.planilla-wsp .btn svg{flex:none}
 .copiar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;margin-top:8px}
 
 .grilla{overflow-x:auto;max-height:64vh;overflow-y:auto;border:1px solid var(--line);border-radius:8px}
@@ -701,7 +705,7 @@ function dibujarCargar(){
   <div class="bloque"><h2>Planilla de ${esc(S.mes)}</h2>
     <p class="ayuda">Del 21/${dd(pe.desde.m)} al 20/${dd(pe.hasta.m)}. Mismas columnas que la planilla de la empresa.</p>
     <div class="seg"><button type="button" data-modo="tot" aria-pressed="${!dias}">Totales del mes</button><button type="button" data-modo="dias" aria-pressed="${dias}">Día por día</button></div>
-    ${dias?`<p class="ayuda">En este modo cuentan solo las cantidades cargadas por día. Al volver a Totales, lo cargado acá reemplaza esos totales.</p>${grillaHTML(mi,d)}`:PLANILLA.map(c=>campoPaso(c,d)).join("")}
+    ${dias?`<p class="ayuda">En este modo cuentan solo las cantidades cargadas por día. Al volver a Totales, lo cargado acá reemplaza esos totales.</p>${grillaHTML(mi,d)}${planillaWspHTML()}`:PLANILLA.map(c=>campoPaso(c,d)).join("")}
     ${otras.length?`<div class="copiar"><select class="dato" id="copiar-de" aria-label="Mes del que copiar">${otras.slice().reverse().map(x=>`<option>${x.id}</option>`).join("")}</select><button class="btn" type="button" id="copiar">Copiar cantidades</button></div>`:""}
   </div>
   <div class="bloque"><h2>A mano</h2>
@@ -839,6 +843,90 @@ function avisar(txt,fn){
   t.classList.add("ver");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("ver"),fn?7000:2600);
 }
 
+/* ---------- planilla como imagen para WhatsApp ---------- */
+const DIA_LARGO=["DOMINGO","LUNES","MARTES","MIÉRCOLES","JUEVES","VIERNES","SÁBADO"];
+const ICONO_COMPARTIR='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>';
+function planillaWspHTML(){
+  return `<div class="planilla-wsp">
+    <div class="campo"><label for="pl-nom">Tu nombre<small>sale arriba en la planilla</small></label><input class="dato" id="pl-nom" data-pf="nombre" autocomplete="off" value="${esc(S.perfil.nombre||"")}" placeholder="Apellido y nombre"></div>
+    <div class="campo"><label for="pl-cz">Cuadrilla / zona<small>opcional, va en los días cargados</small></label><input class="dato" id="pl-cz" data-pf="cuadrilla" autocomplete="off" value="${esc(S.perfil.cuadrilla||"")}" placeholder="Opcional"></div>
+    <button class="btn lleno" type="button" id="pl-compartir">${ICONO_COMPARTIR}Compartir planilla por WhatsApp</button>
+  </div>`;
+}
+// Dibuja la planilla con el mismo formato que el Excel de la empresa
+function dibujarPlanilla(mi,d){
+  const ds=diasPeriodo(mi.y,mi.m),g=d.dias||{},pe=periodo(mi.y,mi.m);
+  const W=[92,94,64,58,58,74,76,56,62,72,62,66];
+  const M=16,HT=48,HH=24,HF=22,X=[M];for(const w of W)X.push(X[X.length-1]+w);
+  const ancho=X[12]+M,alto=M+HT+HH*2+HF*(ds.length+1)+30;
+  const k=2,cv=document.createElement("canvas");cv.width=ancho*k;cv.height=alto*k;
+  const c=cv.getContext("2d");c.scale(k,k);
+  c.fillStyle="#FFFFFF";c.fillRect(0,0,ancho,alto);
+  const F="Arial, Helvetica, sans-serif";
+  const ajustar=(l,max)=>{if(c.measureText(l).width<=max)return l;while(l.length>1&&c.measureText(l+"…").width>max)l=l.slice(0,-1);return l+"…"};
+  const celda=(a,b,y,h,fondo)=>{if(fondo){c.fillStyle=fondo;c.fillRect(X[a],y,X[b]-X[a],h)}c.strokeStyle="#000";c.lineWidth=1;c.strokeRect(X[a],y,X[b]-X[a],h)};
+  const texto=(t,a,b,y,h,o={})=>{
+    const tam=o.tam||11,al=o.al||"center",ls=String(t).split("\n"),lh=tam*1.15,y0=y+h/2-(ls.length-1)*lh/2+.5;
+    c.font=`${o.b?"bold ":""}${tam}px ${F}`;c.fillStyle=o.col||"#000";c.textBaseline="middle";c.textAlign=al;
+    const x=al==="left"?X[a]+5:al==="right"?X[b]-5:(X[a]+X[b])/2;
+    ls.forEach((l,i)=>c.fillText(ajustar(l,X[b]-X[a]-8),x,y0+i*lh));
+  };
+  const fq=v=>v?fmQ.format(v):"";
+  // encabezado: título y nombre
+  let y=M;
+  celda(0,2,y,HT);texto("PLANILLA DE HORAS",0,2,y+4,HT/2,{b:true,tam:13});texto(MES_LARGO[mi.m-1].toUpperCase()+" "+mi.y,0,2,y+HT/2-2,HT/2,{tam:11,col:"#333"});
+  celda(2,12,y,HT);
+  c.font=`13px ${F}`;const wn=c.measureText("NOMBRE : ").width;
+  texto("NOMBRE :",2,12,y,HT,{al:"left",tam:13});
+  c.font=`bold 14px ${F}`;c.textAlign="left";c.fillStyle="#000";c.fillText(ajustar(S.perfil.nombre||"",X[12]-X[2]-wn-190),X[2]+5+wn,y+HT/2+.5);
+  texto(`Del ${dd(21)}/${dd(pe.desde.m)}/${pe.desde.y} al 20/${dd(pe.hasta.m)}/${pe.hasta.y}`,8,12,y,HT,{al:"right",tam:11,col:"#444"});
+  // títulos de columnas, igual que el Excel
+  const y1=y+HT,y2=y1+HH;
+  celda(0,1,y1,HH*2);texto("CUADRILLA/\nZONA",0,1,y1,HH*2,{tam:10});
+  celda(1,3,y1,HH*2);texto("FECHA",1,3,y1,HH*2,{tam:10});
+  celda(3,5,y1,HH);texto("H. EXTRAS GUARDIAS",3,5,y1,HH,{tam:10});
+  celda(3,4,y2,HH);texto("50%",3,4,y2,HH,{tam:10});celda(4,5,y2,HH);texto("100%",4,5,y2,HH,{tam:10});
+  celda(5,6,y1,HH*2);texto("HORAS 50%\nPT",5,6,y1,HH*2,{tam:10});
+  celda(6,9,y1,HH);texto("HORAS TRASLADO",6,9,y1,HH,{tam:10});
+  [["MANEJO 50%",6],["VIAJE",7],["VIAJE PT",8]].forEach(([t,i])=>{celda(i,i+1,y2,HH);texto(t,i,i+1,y2,HH,{tam:10})});
+  [["VIANDA\nCOMEDOR",9],["VIANDA\nEXTRA",10],["DISP.\nGUARDIA",11]].forEach(([t,i])=>{celda(i,i+1,y1,HH*2);texto(t,i,i+1,y1,HH*2,{tam:10})});
+  // un renglón por día: fin de semana en amarillo, fecha celeste (mes anterior) o salmón (mes actual)
+  y=y2+HH;
+  for(const x of ds){
+    const f=g[x.iso]||{},fin=x.w===0||x.w===6,am=fin?"#FFFF00":null,hay=PLANILLA.some(col=>num(f[col.k])>0);
+    celda(0,1,y,HF,am);if(hay&&S.perfil.cuadrilla)texto(S.perfil.cuadrilla,0,1,y,HF,{al:"left",tam:10});
+    celda(1,2,y,HF);texto(DIA_LARGO[x.w],1,2,y,HF,{al:"left",tam:10.5});
+    celda(2,3,y,HF,x.m===pe.desde.m?"#DDEBF7":"#FCE4D6");texto(`${x.d}-${NOMBRE_MES[x.m-1]}`,2,3,y,HF,{al:"right",tam:10.5});
+    PLANILLA.forEach((col,i)=>{celda(i+3,i+4,y,HF,am);const v=num(f[col.k]);if(v)texto(fq(v),i+3,i+4,y,HF,{b:true,tam:11.5})});
+    y+=HF;
+  }
+  // totales
+  celda(0,1,y,HF);texto("TOTAL",0,1,y,HF,{b:true,tam:11});
+  celda(1,3,y,HF,"#BFBFBF");
+  PLANILLA.forEach((col,i)=>{celda(i+3,i+4,y,HF,"#BFBFBF");const v=sumaDias(d,col.k);if(v)texto(fq(v),i+3,i+4,y,HF,{b:true,tam:11.5})});
+  const h=new Date();
+  texto(`Hecho con Mi Recibo MR · ${dd(h.getDate())}/${dd(h.getMonth()+1)}/${h.getFullYear()}`,0,12,y+HF+4,22,{al:"left",tam:9.5,col:"#777"});
+  return cv;
+}
+function aBlob(url){const i=url.indexOf(","),bin=atob(url.slice(i+1)),u=new Uint8Array(bin.length);for(let j=0;j<bin.length;j++)u[j]=bin.charCodeAt(j);return new Blob([u],{type:url.slice(5,url.indexOf(";"))})}
+function bajarImagen(blob,nombre){
+  const a=document.createElement("a"),u=URL.createObjectURL(blob);
+  a.href=u;a.download=nombre;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  avisar("Bajé la imagen. Mandala por WhatsApp desde tus fotos o archivos.");
+}
+// Sin esperas antes de compartir: el iPhone solo deja abrir el menú justo después del toque
+function compartirPlanilla(){
+  const mi=S.lista.find(x=>x.id===S.mes),d=S.meses[S.mes]||{};
+  if(!PLANILLA.some(col=>sumaDias(d,col.k)>0)){avisar("Cargá al menos un día antes de compartir.");return}
+  const blob=aBlob(dibujarPlanilla(mi,d).toDataURL("image/png")),nombre=`planilla-horas-${S.mes}.png`;
+  let arch=null;try{arch=new File([blob],nombre,{type:"image/png"})}catch(e){}
+  if(arch&&navigator.canShare&&navigator.canShare({files:[arch]})){
+    navigator.share({files:[arch]}).catch(e=>{if(!e||e.name!=="AbortError")bajarImagen(blob,nombre)});
+    return;
+  }
+  bajarImagen(blob,nombre);
+}
+
 /* ---------- eventos ---------- */
 function mesDoc(){return S.meses[S.mes]||(S.meses[S.mes]={})}
 function fijar(k,valorTxt){
@@ -849,6 +937,7 @@ function fijar(k,valorTxt){
 document.addEventListener("input",e=>{
   const t=e.target;
   if(t.dataset.f){fijar(t.dataset.f,t.value);return}
+  if(t.dataset.pf){const v=t.value.trim();if(v)S.perfil[t.dataset.pf]=v;else delete S.perfil[t.dataset.pf];guardarPerfil();return}
   if(t.dataset.d){
     const d=mesDoc();d.dias=d.dias||{};const f=d.dias[t.dataset.d]||(d.dias[t.dataset.d]={}),n=aNum(t.value);
     if(t.value.trim()===""||!Number.isFinite(n))delete f[t.dataset.k];else f[t.dataset.k]=n;
@@ -899,6 +988,7 @@ document.addEventListener("click",e=>{
     if(d.modo==="tot")for(const c of PLANILLA){const s=sumaDias(d,c.k);if(s)d[c.k]=s}
     guardarMes(S.mes);refrescarSalidas();dibujarCargar();return;
   }
+  if(b.id==="pl-compartir"){compartirPlanilla();return}
   if(b.id==="copiar"){
     const de=$("#copiar-de").value,orig=clon(S.meses[S.mes]||{}),d=mesDoc(),f=S.meses[de]||{};
     for(const c of PLANILLA){const v=cantidad(f,c.k);if(v)d[c.k]=v;else delete d[c.k]}
