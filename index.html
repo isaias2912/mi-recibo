@@ -309,10 +309,8 @@ const MES_LARGO = ["enero","febrero","marzo","abril","mayo","junio","julio","ago
 const PLANILLA = [
   {k:"he50",l:"Horas extras 50%",c:"Ha 2550",u:"hs",p:.5,t:"50%"},
   {k:"he100",l:"Horas extras 100%",c:"Ha 2551",u:"hs",p:.5,t:"100%"},
-  {k:"pt",l:"Horas 50% PT",c:"suma a Ha 2550",u:"hs",p:.5,t:"50% PT"},
   {k:"man",l:"Manejo 50%",c:"Ha 2554",u:"hs",p:.5,t:"Manejo"},
-  {k:"via",l:"Viaje",c:"art. 59",u:"hs",p:.5,t:"Viaje"},
-  {k:"vpt",l:"Viaje PT",c:"art. 59",u:"hs",p:.5,t:"Viaje PT"},
+  {k:"mf",l:"Días de Mayor Función",c:"Ha 1010",u:"días",p:1,t:"Mayor función"},
   {k:"vco",l:"Vianda comedor",c:"Ha 5010",u:"un",p:1,t:"Vianda com."},
   {k:"vex",l:"Vianda extra",c:"Ha 5010",u:"un",p:1,t:"Vianda ext."},
   {k:"gua",l:"Disp. guardia",c:"Ha 1520",u:"días",p:1,t:"Guardia"},
@@ -368,7 +366,8 @@ function calcularTodo(ctx){
     const v=k=>valor(pf,tabla,k),q=k=>cantidad(d,k);
     const qv8=(d.v8!==undefined&&d.v8!=="")?num(d.v8):diasHabiles(mi.y,mi.m)-fer;
     const bas=v(pre+cat),basmf=v(pre+catmf),vmf=Math.max(0,basmf-bas)/P.divd,anios=aniosAntig(pf.ingreso,mi.y,mi.m);
-    const a1010=r2(num(d.mf)*vmf),a1495=anios*v("ANT"),a1520=q("gua")*v("GUA"),paz=v("PAZ"),yac=v("YAC"),a1850=comp,a2453=disp?v("DISP"):0,a5150=compnr;
+    const qmf=d.modo==="dias"&&!Object.values(d.dias||{}).some(f=>num(f.mf))?num(d.mf):q("mf");
+    const a1010=r2(qmf*vmf),a1495=anios*v("ANT"),a1520=q("gua")*v("GUA"),paz=v("PAZ"),yac=v("YAC"),a1850=comp,a2453=disp?v("DISP"):0,a5150=compnr;
     const S=bas+a1010+a1495+a1520+a1850+paz+yac+a2453,h0=S/P.divh,h50=h0*(1+P.r50),h100=h0*(1+P.r100);
     const a2550=r2((q("he50")+q("pt"))*h50),a2551=r2(q("he100")*h100),a2554=r2(q("man")*h50),aviaj=r2((q("via")+q("vpt"))*v("VIA"));
     const bpres=S+a2550+a2551+a2554+aviaj,a2600=r2(P.pres*bpres);
@@ -390,7 +389,7 @@ function calcularTodo(ctx){
     const L=(g,cod,con,mon,cant,uni,val)=>({g,cod,con,mon,cant,uni,val});
     const lineas=[
       L("rem","Ha 1000","Básico",bas),
-      L("rem","Ha 1010","Mayor Función",a1010,num(d.mf),"ds",vmf),
+      L("rem","Ha 1010","Mayor Función",a1010,qmf,"ds",vmf),
       L("rem","Ha 1495","Antigüedad",a1495,anios,"años",v("ANT")),
       L("rem","Ha 1520","Guardias",a1520,q("gua"),"ds",v("GUA")),
       L("rem","Ha 1850","Compensador CCT",a1850),
@@ -665,7 +664,6 @@ function dibujarInicio(){
   ${instalarHTML()}</div>`;
 }
 const CAMPOS_MANO=[
-  {k:"mf",l:"Días de Mayor Función",c:"Ha 1010",p:1},
   {k:"gr",l:"Días de licencia gremial",c:"Ha 3920",p:1},
   {k:"fr",l:"Días de franco compensatorio",c:"Ha 3915, netea a cero",p:1},
   {k:"vd",l:"Plus vacacional: días",c:"Ha 3901",p:1},
@@ -856,9 +854,9 @@ function planillaWspHTML(){
 // Dibuja la planilla con el mismo formato que el Excel de la empresa
 function dibujarPlanilla(mi,d){
   const ds=diasPeriodo(mi.y,mi.m),g=d.dias||{},pe=periodo(mi.y,mi.m);
-  const W=[92,94,64,58,58,74,76,56,62,72,62,66];
+  const W=[92,94,64,62,62,112,78,76,66,70];
   const M=16,HT=48,HH=24,HF=22,X=[M];for(const w of W)X.push(X[X.length-1]+w);
-  const ancho=X[12]+M,alto=M+HT+HH*2+HF*(ds.length+1)+30;
+  const N=X.length-1,ancho=X[N]+M,alto=M+HT+HH*2+HF*(ds.length+1)+30;
   const k=2,cv=document.createElement("canvas");cv.width=ancho*k;cv.height=alto*k;
   const c=cv.getContext("2d");c.scale(k,k);
   c.fillStyle="#FFFFFF";c.fillRect(0,0,ancho,alto);
@@ -875,21 +873,20 @@ function dibujarPlanilla(mi,d){
   // encabezado: título y nombre
   let y=M;
   celda(0,2,y,HT);texto("PLANILLA DE HORAS",0,2,y+4,HT/2,{b:true,tam:13});texto(MES_LARGO[mi.m-1].toUpperCase()+" "+mi.y,0,2,y+HT/2-2,HT/2,{tam:11,col:"#333"});
-  celda(2,12,y,HT);
+  celda(2,N,y,HT);
   c.font=`13px ${F}`;const wn=c.measureText("NOMBRE : ").width;
-  texto("NOMBRE :",2,12,y,HT,{al:"left",tam:13});
-  c.font=`bold 14px ${F}`;c.textAlign="left";c.fillStyle="#000";c.fillText(ajustar(S.perfil.nombre||"",X[12]-X[2]-wn-190),X[2]+5+wn,y+HT/2+.5);
-  texto(`Del ${dd(21)}/${dd(pe.desde.m)}/${pe.desde.y} al 20/${dd(pe.hasta.m)}/${pe.hasta.y}`,8,12,y,HT,{al:"right",tam:11,col:"#444"});
+  texto("NOMBRE :",2,N,y,HT,{al:"left",tam:13});
+  c.font=`bold 14px ${F}`;c.textAlign="left";c.fillStyle="#000";c.fillText(ajustar(S.perfil.nombre||"",X[N]-X[2]-wn-190),X[2]+5+wn,y+HT/2+.5);
+  texto(`Del ${dd(21)}/${dd(pe.desde.m)}/${pe.desde.y} al 20/${dd(pe.hasta.m)}/${pe.hasta.y}`,6,N,y,HT,{al:"right",tam:11,col:"#444"});
   // títulos de columnas, igual que el Excel
   const y1=y+HT,y2=y1+HH;
   celda(0,1,y1,HH*2);texto("CUADRILLA/\nZONA",0,1,y1,HH*2,{tam:10});
   celda(1,3,y1,HH*2);texto("FECHA",1,3,y1,HH*2,{tam:10});
   celda(3,5,y1,HH);texto("H. EXTRAS GUARDIAS",3,5,y1,HH,{tam:10});
   celda(3,4,y2,HH);texto("50%",3,4,y2,HH,{tam:10});celda(4,5,y2,HH);texto("100%",4,5,y2,HH,{tam:10});
-  celda(5,6,y1,HH*2);texto("HORAS 50%\nPT",5,6,y1,HH*2,{tam:10});
-  celda(6,9,y1,HH);texto("HORAS TRASLADO",6,9,y1,HH,{tam:10});
-  [["MANEJO 50%",6],["VIAJE",7],["VIAJE PT",8]].forEach(([t,i])=>{celda(i,i+1,y2,HH);texto(t,i,i+1,y2,HH,{tam:10})});
-  [["VIANDA\nCOMEDOR",9],["VIANDA\nEXTRA",10],["DISP.\nGUARDIA",11]].forEach(([t,i])=>{celda(i,i+1,y1,HH*2);texto(t,i,i+1,y1,HH*2,{tam:10})});
+  celda(5,6,y1,HH);texto("HORAS TRASLADO",5,6,y1,HH,{tam:10});
+  celda(5,6,y2,HH);texto("MANEJO 50%",5,6,y2,HH,{tam:10});
+  [["MAYOR\nFUNCIÓN",6],["VIANDA\nCOMEDOR",7],["VIANDA\nEXTRA",8],["DISP.\nGUARDIA",9]].forEach(([t,i])=>{celda(i,i+1,y1,HH*2);texto(t,i,i+1,y1,HH*2,{tam:10})});
   // un renglón por día: fin de semana en amarillo, fecha celeste (mes anterior) o salmón (mes actual)
   y=y2+HH;
   for(const x of ds){
@@ -905,7 +902,7 @@ function dibujarPlanilla(mi,d){
   celda(1,3,y,HF,"#BFBFBF");
   PLANILLA.forEach((col,i)=>{celda(i+3,i+4,y,HF,"#BFBFBF");const v=sumaDias(d,col.k);if(v)texto(fq(v),i+3,i+4,y,HF,{b:true,tam:11.5})});
   const h=new Date();
-  texto(`Hecho con Mi Recibo MR · ${dd(h.getDate())}/${dd(h.getMonth()+1)}/${h.getFullYear()}`,0,12,y+HF+4,22,{al:"left",tam:9.5,col:"#777"});
+  texto(`Hecho con Mi Recibo MR · ${dd(h.getDate())}/${dd(h.getMonth()+1)}/${h.getFullYear()}`,0,N,y+HF+4,22,{al:"left",tam:9.5,col:"#777"});
   return cv;
 }
 function aBlob(url){const i=url.indexOf(","),bin=atob(url.slice(i+1)),u=new Uint8Array(bin.length);for(let j=0;j<bin.length;j++)u[j]=bin.charCodeAt(j);return new Blob([u],{type:url.slice(5,url.indexOf(";"))})}
@@ -941,6 +938,7 @@ document.addEventListener("input",e=>{
   if(t.dataset.d){
     const d=mesDoc();d.dias=d.dias||{};const f=d.dias[t.dataset.d]||(d.dias[t.dataset.d]={}),n=aNum(t.value);
     if(t.value.trim()===""||!Number.isFinite(n))delete f[t.dataset.k];else f[t.dataset.k]=n;
+    if(t.dataset.k==="mf")delete d.mf;
     if(!Object.keys(f).length)delete d.dias[t.dataset.d];
     guardarMes(S.mes);refrescarSalidas();
   }
@@ -992,7 +990,7 @@ document.addEventListener("click",e=>{
   if(b.id==="copiar"){
     const de=$("#copiar-de").value,orig=clon(S.meses[S.mes]||{}),d=mesDoc(),f=S.meses[de]||{};
     for(const c of PLANILLA){const v=cantidad(f,c.k);if(v)d[c.k]=v;else delete d[c.k]}
-    for(const k of ["mf","gr","fr"]){if(f[k])d[k]=f[k];else delete d[k]}
+    for(const k of ["gr","fr"]){if(f[k])d[k]=f[k];else delete d[k]}
     delete d.modo;guardarMes(S.mes);dibujarTodo();
     const id=S.mes;avisar(`Copié las cantidades de ${de}.`,()=>{S.meses[id]=orig;guardarMes(id);dibujarTodo()});return;
   }
