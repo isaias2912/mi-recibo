@@ -172,7 +172,7 @@ input.dato::placeholder{color:var(--muted);opacity:.85}
 .planilla-wsp .btn svg{flex:none}
 .copiar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;margin-top:8px}
 
-.grilla{overflow-x:auto;max-height:64vh;overflow-y:auto;border:1px solid var(--line);border-radius:8px}
+.grilla{overflow-x:auto;max-height:64vh;overflow-y:auto;border:1px solid var(--line);border-radius:8px;scroll-padding:84px 0 0 96px}
 .grilla table{border-collapse:separate;border-spacing:0;font-size:.82rem}
 .grilla th,.grilla td{padding:2px;border-bottom:1px solid var(--line);background:var(--surface)}
 .grilla thead th{position:sticky;top:0;z-index:2;font-family:var(--display);font-weight:600;font-size:.82rem;line-height:1.05;min-width:56px;padding:6px 3px}
@@ -180,6 +180,7 @@ input.dato::placeholder{color:var(--muted);opacity:.85}
 .grilla .dia{position:sticky;left:0;z-index:1;text-align:left;font-family:var(--data);font-weight:400;font-size:.74rem;white-space:nowrap;padding:0 8px;min-width:88px}
 .grilla thead .dia{z-index:3}
 .grilla tr.finde .dia{color:var(--accent);font-weight:500}
+.grilla input.cz{width:60px;text-align:center}
 .grilla input{width:52px;height:34px;background:var(--input);border:1px solid var(--input-line);border-radius:5px;text-align:right;padding:0 4px;font-family:var(--data);font-size:.82rem}
 
 /* meses */
@@ -689,10 +690,10 @@ function grillaHTML(mi,d){
   const ds=diasPeriodo(mi.y,mi.m),g=d.dias||{};
   const fil=ds.map(x=>{
     const f=g[x.iso]||{};
-    return `<tr class="${x.w===0||x.w===6?"finde":""}"><th class="dia" scope="row">${DIAS[x.w]} ${dd(x.d)}/${dd(x.m)}</th>${PLANILLA.map(c=>`<td><input id="g-${x.iso}-${c.k}" data-d="${x.iso}" data-k="${c.k}" inputmode="decimal" autocomplete="off" aria-label="${esc(c.l)} ${dd(x.d)}/${dd(x.m)}" value="${esc(vTxt(f[c.k]))}"></td>`).join("")}</tr>`;
+    return `<tr class="${x.w===0||x.w===6?"finde":""}"><th class="dia" scope="row">${DIAS[x.w]} ${dd(x.d)}/${dd(x.m)}</th><td><input class="cz" id="g-${x.iso}-cz" data-d="${x.iso}" data-k="cz" type="text" inputmode="numeric" maxlength="6" autocomplete="off" aria-label="Número de cuadrilla ${dd(x.d)}/${dd(x.m)}" value="${esc(f.cz||"")}"></td>${PLANILLA.map(c=>`<td><input id="g-${x.iso}-${c.k}" data-d="${x.iso}" data-k="${c.k}" inputmode="decimal" autocomplete="off" aria-label="${esc(c.l)} ${dd(x.d)}/${dd(x.m)}" value="${esc(vTxt(f[c.k]))}"></td>`).join("")}</tr>`;
   }).join("");
-  return `<div class="grilla"><table><thead><tr><th class="dia" scope="col">Día</th>${PLANILLA.map(c=>`<th scope="col">${esc(c.t)}</th>`).join("")}</tr>
-  <tr><th class="dia" scope="row">Total</th>${PLANILLA.map(c=>`<th id="t-${c.k}">0</th>`).join("")}</tr></thead><tbody>${fil}</tbody></table></div>`;
+  return `<div class="grilla"><table><thead><tr><th class="dia" scope="col">Día</th><th scope="col">Cuadrilla</th>${PLANILLA.map(c=>`<th scope="col">${esc(c.t)}</th>`).join("")}</tr>
+  <tr><th class="dia" scope="row">Total</th><th></th>${PLANILLA.map(c=>`<th id="t-${c.k}">0</th>`).join("")}</tr></thead><tbody>${fil}</tbody></table></div>`;
 }
 function dibujarCargar(){
   const p=$("#p-cargar"),r=resActual();if(!S.cargado)return;
@@ -847,7 +848,7 @@ const ICONO_COMPARTIR='<svg width="20" height="20" viewBox="0 0 24 24" fill="non
 function planillaWspHTML(){
   return `<div class="planilla-wsp">
     <div class="campo"><label for="pl-nom">Tu nombre<small>sale arriba en la planilla</small></label><input class="dato" id="pl-nom" data-pf="nombre" autocomplete="off" value="${esc(S.perfil.nombre||"")}" placeholder="Apellido y nombre"></div>
-    <div class="campo"><label for="pl-cz">Cuadrilla / zona<small>opcional, va en los días cargados</small></label><input class="dato" id="pl-cz" data-pf="cuadrilla" autocomplete="off" value="${esc(S.perfil.cuadrilla||"")}" placeholder="Opcional"></div>
+    <div class="campo"><label for="pl-cz">Cuadrilla de siempre<small>opcional: el número va en los días con algo cargado que dejaste sin cuadrilla</small></label><input class="dato" id="pl-cz" data-pf="cuadrilla" inputmode="numeric" maxlength="6" autocomplete="off" value="${esc(S.perfil.cuadrilla||"")}" placeholder="Opcional"></div>
     <button class="btn lleno" type="button" id="pl-compartir">${ICONO_COMPARTIR}Compartir planilla por WhatsApp</button>
   </div>`;
 }
@@ -864,8 +865,10 @@ function dibujarPlanilla(mi,d){
   const ajustar=(l,max)=>{if(c.measureText(l).width<=max)return l;while(l.length>1&&c.measureText(l+"…").width>max)l=l.slice(0,-1);return l+"…"};
   const celda=(a,b,y,h,fondo)=>{if(fondo){c.fillStyle=fondo;c.fillRect(X[a],y,X[b]-X[a],h)}c.strokeStyle="#000";c.lineWidth=1;c.strokeRect(X[a],y,X[b]-X[a],h)};
   const texto=(t,a,b,y,h,o={})=>{
-    const tam=o.tam||11,al=o.al||"center",ls=String(t).split("\n"),lh=tam*1.15,y0=y+h/2-(ls.length-1)*lh/2+.5;
-    c.font=`${o.b?"bold ":""}${tam}px ${F}`;c.fillStyle=o.col||"#000";c.textBaseline="middle";c.textAlign=al;
+    let tam=o.tam||11;const al=o.al||"center",ls=String(t).split("\n");
+    c.font=`${o.b?"bold ":""}${tam}px ${F}`;
+    if(o.encoger)while(tam>7.5&&Math.max(...ls.map(l=>c.measureText(l).width))>X[b]-X[a]-8){tam-=.5;c.font=`${o.b?"bold ":""}${tam}px ${F}`}
+    const lh=tam*1.15,y0=y+h/2-(ls.length-1)*lh/2+.5;c.fillStyle=o.col||"#000";c.textBaseline="middle";c.textAlign=al;
     const x=al==="left"?X[a]+5:al==="right"?X[b]-5:(X[a]+X[b])/2;
     ls.forEach((l,i)=>c.fillText(ajustar(l,X[b]-X[a]-8),x,y0+i*lh));
   };
@@ -891,7 +894,8 @@ function dibujarPlanilla(mi,d){
   y=y2+HH;
   for(const x of ds){
     const f=g[x.iso]||{},fin=x.w===0||x.w===6,am=fin?"#FFFF00":null,hay=PLANILLA.some(col=>num(f[col.k])>0);
-    celda(0,1,y,HF,am);if(hay&&S.perfil.cuadrilla)texto(S.perfil.cuadrilla,0,1,y,HF,{al:"left",tam:10});
+    const cz=f.cz||(hay&&S.perfil.cuadrilla)||"";
+    celda(0,1,y,HF,am);if(cz)texto(cz,0,1,y,HF,{b:true,tam:11.5,encoger:true});
     celda(1,2,y,HF);texto(DIA_LARGO[x.w],1,2,y,HF,{al:"left",tam:10.5});
     celda(2,3,y,HF,x.m===pe.desde.m?"#DDEBF7":"#FCE4D6");texto(`${x.d}-${NOMBRE_MES[x.m-1]}`,2,3,y,HF,{al:"right",tam:10.5});
     PLANILLA.forEach((col,i)=>{celda(i+3,i+4,y,HF,am);const v=num(f[col.k]);if(v)texto(fq(v),i+3,i+4,y,HF,{b:true,tam:11.5})});
@@ -914,7 +918,7 @@ function bajarImagen(blob,nombre){
 // Sin esperas antes de compartir: el iPhone solo deja abrir el menú justo después del toque
 function compartirPlanilla(){
   const mi=S.lista.find(x=>x.id===S.mes),d=S.meses[S.mes]||{};
-  if(!PLANILLA.some(col=>sumaDias(d,col.k)>0)){avisar("Cargá al menos un día antes de compartir.");return}
+  if(!PLANILLA.some(col=>sumaDias(d,col.k)>0)&&!Object.values(d.dias||{}).some(f=>f&&f.cz)){avisar("Cargá al menos un día antes de compartir.");return}
   const blob=aBlob(dibujarPlanilla(mi,d).toDataURL("image/png")),nombre=`planilla-horas-${S.mes}.png`;
   let arch=null;try{arch=new File([blob],nombre,{type:"image/png"})}catch(e){}
   if(arch&&navigator.canShare&&navigator.canShare({files:[arch]})){
@@ -936,9 +940,13 @@ document.addEventListener("input",e=>{
   if(t.dataset.f){fijar(t.dataset.f,t.value);return}
   if(t.dataset.pf){const v=t.value.trim();if(v)S.perfil[t.dataset.pf]=v;else delete S.perfil[t.dataset.pf];guardarPerfil();return}
   if(t.dataset.d){
-    const d=mesDoc();d.dias=d.dias||{};const f=d.dias[t.dataset.d]||(d.dias[t.dataset.d]={}),n=aNum(t.value);
-    if(t.value.trim()===""||!Number.isFinite(n))delete f[t.dataset.k];else f[t.dataset.k]=n;
-    if(t.dataset.k==="mf")delete d.mf;
+    const d=mesDoc();d.dias=d.dias||{};const f=d.dias[t.dataset.d]||(d.dias[t.dataset.d]={});
+    if(t.dataset.k==="cz"){const v=t.value.trim().slice(0,6);if(v)f.cz=v;else delete f.cz}
+    else{
+      const n=aNum(t.value);
+      if(t.value.trim()===""||!Number.isFinite(n))delete f[t.dataset.k];else f[t.dataset.k]=n;
+      if(t.dataset.k==="mf")delete d.mf;
+    }
     if(!Object.keys(f).length)delete d.dias[t.dataset.d];
     guardarMes(S.mes);refrescarSalidas();
   }
